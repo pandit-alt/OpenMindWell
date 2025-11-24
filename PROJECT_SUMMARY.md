@@ -182,7 +182,7 @@ All contributions welcome - from typo fixes to major features!
 
 - GitHub Issues: Bug reports and feature requests
 - GitHub Discussions: Questions and ideas
-- Email: support@openmindwell.org (TODO: set up)
+- Email: support@zenyukti.in (TODO: set up)
 
 ---
 
