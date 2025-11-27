@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getSession, getCurrentUser, getProfile, signOut } from '../lib/supabase';
 import { roomsApi, resourcesApi } from '../lib/api';
+import ChatRoom from '../components/ChatRoom';
 
 type Tab = 'rooms' | 'journal' | 'habits' | 'resources';
 
@@ -119,9 +120,12 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
 function RoomsTab() {
   const [rooms, setRooms] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRoom, setSelectedRoom] = useState<any | null>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   useEffect(() => {
     loadRooms();
+    loadCurrentUser();
   }, []);
 
   async function loadRooms() {
@@ -135,6 +139,25 @@ function RoomsTab() {
     }
   }
 
+  async function loadCurrentUser() {
+    const user = await getCurrentUser();
+    if (user) {
+      const { data } = await getProfile(user.id);
+      setCurrentUser({
+        id: user.id,
+        nickname: data?.nickname || 'Anonymous',
+      });
+    }
+  }
+
+  function handleJoinRoom(room: any) {
+    if (!currentUser) {
+      alert('Please wait, loading user information...');
+      return;
+    }
+    setSelectedRoom(room);
+  }
+
   if (loading) {
     return <div className="text-center py-8">Loading rooms...</div>;
   }
@@ -144,16 +167,39 @@ function RoomsTab() {
       <h2 className="text-2xl font-bold mb-6 text-gray-900">Support Rooms</h2>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
         {rooms.map((room) => (
-          <div key={room.id} className="card hover:shadow-lg transition-shadow cursor-pointer">
-            <h3 className="text-lg font-semibold mb-2">{room.name}</h3>
+          <div key={room.id} className="card hover:shadow-lg transition-shadow">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-primary-600 text-lg">💬</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold mb-1">{room.name}</h3>
+                <p className="text-xs text-gray-500">{room.member_count || 0} members online</p>
+              </div>
+            </div>
             <p className="text-sm text-gray-600 mb-4">{room.description}</p>
-            <button className="btn-primary w-full text-sm">Join Room →</button>
+            <button
+              onClick={() => handleJoinRoom(room)}
+              className="btn-primary w-full text-sm"
+            >
+              Join Room →
+            </button>
           </div>
         ))}
       </div>
-      <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-900">
-          💡 <strong>Tip:</strong> Chat functionality coming soon! For now, you can view available rooms.
+
+      {/* Chat Room Modal */}
+      {selectedRoom && currentUser && (
+        <ChatRoom
+          room={selectedRoom}
+          currentUser={currentUser}
+          onClose={() => setSelectedRoom(null)}
+        />
+      )}
+
+      <div className="mt-6 bg-green-50 border border-green-200 rounded-lg p-4">
+        <p className="text-sm text-green-900">
+          ✅ <strong>Real-time chat is now active!</strong> Join a room to connect with others anonymously.
         </p>
       </div>
     </div>
