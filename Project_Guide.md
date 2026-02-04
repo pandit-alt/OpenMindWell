@@ -248,27 +248,167 @@ This platform does NOT provide:
 
 ### Data Flow Examples
 
-**1. User Sends Chat Message:**
+#### **1. User Onboarding Flow**
+
 ```
-User types message → Frontend (React) → WebSocket client
-  → Backend WebSocket server → Crisis detection (HuggingFace API)
-  → Save to Supabase (messages table with risk_level)
-  → Broadcast to all users in room (via WebSocket)
-  → Display in chat UI
+┌──────┐
+│ USER │ Opens app
+└───┬──┘
+    │
+    ▼
+┌────────────────┐
+│ Landing Page   │ Sees disclaimers, clicks "Get Started"
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Onboarding     │ Enters nickname + avatar
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Frontend       │ Calls supabase.auth.signInAnonymously()
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Supabase Auth  │ Creates anonymous user, returns JWT
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Frontend       │ Creates profile (nickname, avatar, user_id)
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Supabase DB    │ Inserts into profiles table (RLS check)
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Dashboard      │ User redirected, sees rooms/journal/habits
+└────────────────┘
 ```
 
-**2. User Creates Journal Entry:**
+#### **2. Real-Time Chat Message Flow**
+
 ```
-User writes entry → Frontend form → HTTP POST /api/journal
-  → Backend validates JWT → Supabase insert (with RLS check)
-  → Return success → Update UI
+┌──────┐
+│ USER │ Types message in chat room
+└───┬──┘
+    │
+    ▼
+┌────────────────┐
+│ Frontend       │ Sends via WebSocket: {type: 'chat', content: '...'}
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Backend WS     │ Receives message
+└───┬────────────┘
+    │
+    ├──────────────────────────┐
+    │                          │
+    ▼                          ▼
+┌────────────────┐      ┌──────────────┐
+│ Crisis         │      │ Supabase DB  │
+│ Detection      │      │ Save message │
+│ (AI + Keywords)│      │ with risk    │
+└───┬────────────┘      └──────────────┘
+    │
+    │ Returns: {riskLevel: 'high', isCrisis: true}
+    │
+    ▼
+┌────────────────┐
+│ Backend WS     │ Broadcasts to all room members
+└───┬────────────┘
+    │
+    ├──────────────────────────┐
+    │                          │
+    ▼                          ▼
+┌────────────────┐      ┌──────────────┐
+│ All Users      │      │ Original User│
+│ See message    │      │ Gets crisis  │
+│                │      │ alert (private)│
+└────────────────┘      └──────────────┘
 ```
 
-**3. User Joins Chat Room:**
+#### **3. Journal Entry Creation**
+
 ```
-User clicks room → WebSocket send "join" event
-  → Backend adds user to room map → Fetch last 50 messages
-  → Send message history to user → User sees chat
+┌──────┐
+│ USER │ Writes journal entry (title, content, mood, tags)
+└───┬──┘
+    │
+    ▼
+┌────────────────┐
+│ Frontend       │ POST /api/journal + JWT token
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Backend        │ Validates JWT, extracts user_id
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Supabase DB    │ INSERT into journal_entries
+│                │ RLS: Only if auth.uid() = user_id
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Backend        │ Returns created entry
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Frontend       │ Updates UI, shows success message
+└────────────────┘
+```
+
+#### **4. Habit Tracking Workflow**
+
+```
+┌──────┐
+│ USER │ Marks habit as complete for today
+└───┬──┘
+    │
+    ▼
+┌────────────────┐
+│ Frontend       │ POST /api/habits/:id/log
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Backend        │ Check if already logged today
+└───┬────────────┘
+    │
+    ├─────── Already logged? ──────► Return error
+    │
+    ▼
+┌────────────────┐
+│ Supabase DB    │ INSERT into habit_logs (habit_id, date, notes)
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Backend        │ Calculate new streak
+│                │ - Check yesterday's log
+│                │ - If exists: streak++
+│                │ - If not: streak = 1
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Supabase DB    │ UPDATE habits SET current_streak = X
+└───┬────────────┘
+    │
+    ▼
+┌────────────────┐
+│ Frontend       │ Shows updated streak, confetti animation 🎉
+└────────────────┘
 ```
 
 ---

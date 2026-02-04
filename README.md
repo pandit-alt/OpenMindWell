@@ -63,6 +63,37 @@ This comprehensive guide contains:
 - **Database**: Supabase (PostgreSQL + Auth)
 - **AI**: HuggingFace Inference API (emotion detection)
 
+## Architecture Overview
+
+```
+┌─────────────┐
+│    USER     │ (Browser)
+└──────┬──────┘
+       │
+       ├─────────────────────────────────────┐
+       │                                     │
+       ▼                                     ▼
+┌─────────────┐                      ┌─────────────┐
+│  FRONTEND   │◄────WebSocket───────►│   BACKEND   │
+│ (React/Vite)│                      │  (Express)  │
+└──────┬──────┘                      └──────┬──────┘
+       │                                     │
+       │ Supabase Auth                       ├──────────┐
+       │ (Anonymous)                         │          │
+       │                                     ▼          ▼
+       │                              ┌──────────┐ ┌──────────┐
+       └─────────────────────────────►│ SUPABASE │ │HuggingFace│
+                                      │(Database)│ │   (AI)   │
+                                      └──────────┘ └──────────┘
+```
+
+**Key Interactions:**
+- **User → Frontend**: Browse, chat, journal, track habits
+- **Frontend ↔ Backend**: REST API (journal, habits) + WebSocket (real-time chat)
+- **Frontend → Supabase**: Anonymous authentication, direct queries
+- **Backend → Supabase**: Store messages, validate users, fetch data
+- **Backend → HuggingFace**: Analyze chat messages for crisis detection
+
 ## Project Structure
 
 ```
